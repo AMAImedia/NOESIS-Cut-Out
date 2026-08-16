@@ -1,0 +1,2274 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NOESIS Cutout</title>
+<meta name="google" content="notranslate" />
+<meta name="robots" content="notranslate" />
+<!-- Fonts fully vendored under ./vendor/fonts (22 woff2 + fonts.css: Bricolage Grotesque,
+     Fraunces, Inter, JetBrains Mono — matches the AMAImedia/NOESIS brand book). No network. -->
+<link rel="stylesheet" href="./vendor/fonts/fonts.css" />
+<style>
+/* ---------- dropzone ---------- */
+  .drop {
+    padding: 46px 28px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 18px;
+    border: 1.5px dashed var(--border-2);
+    background: var(--surface);
+    transition: border-color 0.3s var(--ease), background 0.3s var(--ease), transform 0.3s var(--ease);
+    position: relative;
+    overflow: hidden;
+  }
+  .drop:hover {
+    border-color: var(--violet-text);
+    background: var(--surface-2);
+  }
+  .drop.drag {
+    border-color: var(--pink);
+    background: var(--surface-3);
+    transform: scale(1.008);
+  }
+  .drop-ico {
+    font-size: 34px;
+    margin-bottom: 10px;
+    filter: saturate(1.3);
+  }
+  .drop-title {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 19px;
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .drop-hint {
+    color: var(--text-dim);
+    font-size: 13.5px;
+  }
+  .drop-hint .pick {
+    color: var(--violet-text);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* ---------- controls ---------- */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 22px 0;
+    align-items: center;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 14px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 11px 22px;
+    cursor: pointer;
+    color: #fff;
+    background: var(--btn-grad);
+    background-size: 160% 160%;
+    background-position: 0% 50%;
+    box-shadow: 0 12px 36px rgba(167, 139, 250, 0.25);
+    transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), filter 0.2s var(--ease),
+      background-position 0.5s var(--ease), border-color 0.2s var(--ease), background 0.2s var(--ease);
+  }
+  .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 48px rgba(167, 139, 250, 0.35);
+    background-position: 100% 50%;
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  .btn:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+    filter: grayscale(0.4);
+    box-shadow: none;
+  }
+  .btn.ghost {
+    background: var(--surface-2);
+    color: var(--text);
+    box-shadow: none;
+    border: 1px solid var(--border-strong);
+  }
+  .btn.ghost:hover:not(:disabled) {
+    background: var(--surface-3);
+    border-color: var(--text);
+    box-shadow: none;
+  }
+  .filechip {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-dim);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 7px 14px;
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ---------- progress ---------- */
+  .progress-wrap {
+    margin: 6px 0 22px;
+    display: none;
+  }
+  .progress-wrap.on {
+    display: block;
+  }
+  .progress-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .bar {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--surface-3);
+    overflow: hidden;
+  }
+  .bar > span {
+    display: block;
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: var(--spectrum);
+    background-size: 200% 100%;
+    transition: width 0.4s var(--ease);
+    animation: shimmer 2s linear infinite;
+  }
+  @keyframes shimmer {
+    to {
+      background-position: 200% 0;
+    }
+  }
+
+  /* ---------- preview ---------- */
+  .stage {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-top: 8px;
+  }
+  @media (max-width: 640px) {
+    .stage {
+      grid-template-columns: 1fr;
+    }
+  }
+  .pane {
+    padding: 14px;
+  }
+  .pane-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .pane-label::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+    background: var(--violet);
+  }
+  .pane.after .pane-label::before {
+    background: var(--green);
+  }
+  .imgbox {
+    border-radius: 12px;
+    overflow: hidden;
+    min-height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-2);
+  }
+  .imgbox.checker {
+    background-image:
+      linear-gradient(45deg, var(--checker-a) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--checker-a) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--checker-a) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--checker-a) 75%);
+    background-size: 22px 22px;
+    background-position: 0 0, 0 11px, 11px -11px, -11px 0;
+    background-color: var(--checker-b);
+  }
+  .imgbox img {
+    max-width: 100%;
+    max-height: 460px;
+    display: block;
+  }
+  .stage-hidden {
+    display: none;
+  }
+
+  /* ---------- batch queue ---------- */
+  .batch {
+    margin-top: 8px;
+  }
+  .batch-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .batch-title {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text-dim);
+  }
+  .batch-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .batch-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .batch-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .batch-thumbs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+  }
+  .batch-thumb {
+    width: 46px;
+    height: 46px;
+    border-radius: 9px;
+    overflow: hidden;
+    background: var(--surface-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .batch-thumb.checker {
+    background-image:
+      linear-gradient(45deg, var(--checker-a) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--checker-a) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--checker-a) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--checker-a) 75%);
+    background-size: 14px 14px;
+    background-position: 0 0, 0 7px, 7px -7px, -7px 0;
+    background-color: var(--checker-b);
+  }
+  .batch-thumb img {
+    max-width: 100%;
+    max-height: 100%;
+    display: block;
+  }
+  .batch-arrow {
+    color: var(--text-faint);
+    font-size: 13px;
+    flex: none;
+  }
+  .batch-info {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .batch-name {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .batch-status {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 3px;
+  }
+  .batch-status.pending {
+    color: var(--text-faint);
+  }
+  .batch-status.processing {
+    color: var(--violet-text);
+  }
+  .batch-status.done {
+    color: var(--green);
+  }
+  .batch-status.error {
+    color: var(--red-text);
+  }
+  .batch-remove {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    transition: background 0.2s var(--ease), color 0.2s var(--ease), border-color 0.2s var(--ease);
+  }
+  .batch-remove:hover:not(:disabled) {
+    background: var(--surface-3);
+    color: var(--red-text);
+    border-color: rgba(248, 113, 113, 0.4);
+  }
+  .batch-remove:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* ---------- toast ---------- */
+  .toast-host {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    pointer-events: none;
+  }
+  .toast {
+    font-size: 13.5px;
+    font-weight: 500;
+    padding: 13px 20px;
+    border-radius: 13px;
+    background: var(--surface-3);
+    border: 1px solid var(--border-2);
+    color: var(--text);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: var(--shadow);
+    max-width: 88vw;
+    animation: toastin 0.35s var(--ease);
+  }
+  .toast.err {
+    border-color: rgba(248, 113, 113, 0.5);
+  }
+  .toast.err::before {
+    content: '⚠ ';
+    color: var(--red-text);
+  }
+  .toast.ok::before {
+    content: '✓ ';
+    color: var(--green);
+  }
+  @keyframes toastin {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
+
+  footer.foot {
+    margin-top: 40px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    text-align: center;
+  }
+
+  /* ---------- editor (magic wand + edge refine) ---------- */
+  .editor {
+    margin-top: 18px;
+    padding: 18px;
+  }
+  .editor-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .editor-head .pane-label {
+    margin-bottom: 0;
+  }
+  .editor-hint {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-faint);
+    margin: 0 0 14px;
+    letter-spacing: 0.01em;
+    line-height: 1.7;
+  }
+  .editor-hint b {
+    color: var(--violet-text);
+    font-weight: 600;
+  }
+  .editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .editor-toolbar.refine {
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .refine-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-right: 4px;
+  }
+  .btn.sm {
+    padding: 8px 14px;
+    font-size: 13px;
+    border-radius: 9px;
+  }
+  .tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 9px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: background 0.2s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease);
+  }
+  .tool-btn:hover {
+    background: var(--surface-3);
+  }
+  .tool-btn.active {
+    background: rgba(167, 139, 250, 0.16);
+    border-color: var(--violet-text);
+    color: var(--violet-text);
+  }
+  .tool-slider {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+  }
+  .tool-slider input[type='range'] {
+    width: 116px;
+    accent-color: var(--violet);
+  }
+  .tool-slider output {
+    min-width: 26px;
+    text-align: right;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .edit-canvas-wrap {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    line-height: 0;
+  }
+  .edit-canvas-wrap.checker {
+    background-image:
+      linear-gradient(45deg, var(--checker-a) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--checker-a) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--checker-a) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--checker-a) 75%);
+    background-size: 22px 22px;
+    background-position: 0 0, 0 11px, 11px -11px, -11px 0;
+    background-color: var(--checker-b);
+  }
+  #editCanvas {
+    display: block;
+    max-width: 100%;
+    max-height: 70vh;
+    width: auto;
+    height: auto;
+  }
+  #overlayCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .editor-actions {
+    margin-top: 14px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+
+
+</style>
+  <link rel="stylesheet" href="vendor/noesis-unified.css?v=20260816-shell1">
+</head>
+<body>
+<div class="aurora" aria-hidden="true"></div>
+<nav class="topnav" aria-label="Primary">
+  <div class="topnav-inner">
+    <a class="brand-mark" href="https://amaimedia.com" aria-label="AMAImedia home">
+      <span class="brand-am-sq" aria-hidden="true"></span>
+      <span>AMAImedia</span>
+      <span class="brand-product">NOESIS · Cut-Out</span>
+    </a>
+    <div class="topnav-actions">
+      <a class="amai-pill-subscribe" href="https://amaimedia.com/subscribe">★ Subscribe</a>
+      <div class="lang-picker" id="langSelect">
+        <button type="button" class="lang-select lang-picker-btn" id="langBtn" aria-haspopup="listbox" aria-expanded="false">
+          <span class="lang-flag-slot" aria-hidden="true"></span><span class="lang-native-slot">English</span><span aria-hidden="true">▾</span>
+        </button>
+        <div class="lang-menu" id="langMenu" role="listbox"></div>
+      </div>
+      <button type="button" class="theme-btn" id="themeBtn" data-canonical-id="themeToggle" aria-label="Toggle theme">◐</button>
+      <button type="button" class="support-btn" id="supportBtn">♥ <span id="supportBtnLabel">Support</span></button>
+    </div>
+  </div>
+</nav>
+<main id="appMain" class="wrap app-frame">
+<section id="page-support" class="page-support" hidden>
+  <div class="card support-hero">
+    <h2 class="grad-text" id="supportTitle">Поддержите проект</h2>
+    <p class="muted" id="supportSub">Ни рекламы, ни аналитики. Если удобно — крепкое слово тоже в помощь :)</p>
+    <p class="muted small" id="supportThanks" style="margin-top:10px">Спасибо, что поддерживаете мои AI-разработки!</p>
+    <img src="vendor/donate-qr.png" alt="QR" style="width:180px;border-radius:14px;margin:18px auto 6px;display:block;box-shadow:0 10px 30px -12px rgba(0,0,0,.6)" />
+    <div class="wallet" id="walletTxt">0xa6e95e8e019fbd7e5f720fbed7a3bcf3f020c293</div>
+    <div class="btn-row" style="justify-content:center">
+      <button class="sbtn ghost" type="button" id="supportCopyBtn">Скопировать кошелёк</button>
+    </div>
+    <div class="btn-row" style="justify-content:center;margin-top:10px">
+      <button class="sbtn ghost" type="button" id="supportTgBtn">Telegram</button>
+      <button class="sbtn" type="button" id="supportChannelBtn">Подписаться на канал</button>
+    </div>
+  </div>
+</section>
+
+<div id="toolMain">
+
+
+  <span class="eyebrow" id="eyebrow"></span>
+  <h1 class="hero" id="hero"></h1>
+  <p class="lede" id="lede"></p>
+  <div style="height: 22px"></div>
+
+  <!-- dropzone -->
+  <div class="drop" id="drop" role="button" tabindex="0" aria-label="Drop or choose an image">
+    <div class="drop-ico">🖼️</div>
+    <div class="drop-title" id="dropTitle"></div>
+    <div class="drop-hint" id="dropHint"></div>
+    <input type="file" id="file" accept="image/*" multiple hidden />
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="runBtn" type="button" disabled></button>
+    <button class="btn ghost" id="dlBtn" type="button" disabled></button>
+    <button class="btn ghost" id="resetBtn" type="button" disabled></button>
+    <button class="btn ghost" id="editBtn" type="button" disabled></button>
+    <button class="btn" id="chooseBtn" type="button"></button>
+  </div>
+
+  <div class="progress-wrap" id="progWrap">
+    <div class="progress-label"><span id="progText">Preparing…</span><span id="progPct">0%</span></div>
+    <div class="bar"><span id="progBar"></span></div>
+  </div>
+
+  <div class="stage stage-hidden" id="stage">
+    <div class="card pane before">
+      <div class="pane-label" id="paneBefore">Оригинал</div>
+      <div class="imgbox"><img id="imgBefore" alt="" /></div>
+    </div>
+    <div class="card pane after">
+      <div class="pane-label" id="paneAfter">Результат</div>
+      <div class="imgbox checker"><img id="imgAfter" alt="" /></div>
+    </div>
+  </div>
+
+  <!-- editor: magic wand + edge refine (single-file touch-up; operates on the same
+       pixels that flow into the existing PNG download path). Hidden until opened. -->
+  <div class="card editor stage-hidden" id="editorSection">
+    <div class="editor-head">
+      <div class="pane-label" id="editorTitle">Ретушь</div>
+      <button class="batch-remove" id="editCloseBtn" type="button" title="">&#215;</button>
+    </div>
+    <p class="editor-hint" id="editorHint"></p>
+
+    <div class="editor-toolbar">
+      <button class="tool-btn" id="wandBtn" type="button"></button>
+      <label class="tool-slider">
+        <span id="tolLabel"></span>
+        <input type="range" id="tolInput" min="0" max="255" value="30" />
+        <output id="tolVal">30</output>
+      </label>
+      <button class="btn ghost sm" id="eraseBtn" type="button"></button>
+      <button class="btn ghost sm" id="invertBtn" type="button"></button>
+      <button class="btn ghost sm" id="clearSelBtn" type="button"></button>
+      <button class="btn ghost sm" id="undoBtn" type="button" disabled></button>
+    </div>
+
+    <div class="editor-toolbar refine">
+      <span class="refine-title" id="refineTitle"></span>
+      <label class="tool-slider">
+        <span id="featherLabel"></span>
+        <input type="range" id="featherInput" min="0" max="5" step="1" value="0" />
+        <output id="featherVal">0</output>
+      </label>
+      <label class="tool-slider">
+        <span id="despeckleLabelText"></span>
+        <input type="range" id="despeckleInput" min="1" max="200" step="1" value="16" />
+        <output id="despeckleVal">16</output>
+      </label>
+      <button class="btn ghost sm" id="despeckleBtn" type="button"></button>
+    </div>
+
+    <div class="edit-canvas-wrap checker" id="editCanvasWrap">
+      <canvas id="editCanvas"></canvas>
+      <canvas id="overlayCanvas"></canvas>
+    </div>
+
+    <div class="editor-actions">
+      <button class="btn" id="editDlBtn" type="button"></button>
+    </div>
+  </div>
+
+  <!-- batch mode: shown instead of .stage once 2+ files are queued -->
+  <div class="batch stage-hidden" id="batchSection" aria-live="polite">
+    <div class="batch-head">
+      <div class="batch-title" id="batchTitle"></div>
+      <div class="batch-actions">
+        <button class="btn" id="batchRunBtn" type="button"></button>
+        <button class="btn ghost" id="batchZipBtn" type="button" disabled></button>
+        <button class="btn ghost" id="batchClearBtn" type="button"></button>
+      </div>
+    </div>
+    <div class="progress-wrap" id="batchProgWrap">
+      <div class="progress-label"><span id="batchProgText"></span><span id="batchProgCount"></span></div>
+      <div class="bar"><span id="batchProgBar"></span></div>
+    </div>
+    <div class="batch-list" id="batchList"></div>
+  </div>
+</div>
+
+<div class="toast-host" id="toastHost" aria-live="polite"></div>
+
+<!-- onnxruntime-web is a peer dependency of the imgly lib (bare `import("onnxruntime-web")`);
+     map the bare specifiers to the locally vendored bundles so nothing is fetched off-machine. -->
+</main>
+<footer class="shell-footer">© 2026 AMAImedia · NOESIS</footer>
+<script type="importmap">
+  {
+    "imports": {
+      "onnxruntime-web": "./vendor/lib/onnxruntime-web/ort.bundle.min.mjs",
+      "onnxruntime-web/webgpu": "./vendor/lib/onnxruntime-web/ort.webgpu.bundle.min.mjs"
+    }
+  }
+</script>
+
+<script src="vendor/lang.js"></script>
+<script type="module">
+  window.__noesisAiReady = false;
+  const CDN_BASE = new URL('./vendor/data/', location.href).href;
+  let removeBackground = null;
+  (async () => {
+    try {
+      const lib = await import('./vendor/lib/index.mjs');
+      removeBackground = lib.removeBackground;
+      const ort = await import('onnxruntime-web');
+      ort.env.wasm.wasmPaths = new URL('./vendor/lib/onnxruntime-web/', location.href).href;
+      window.__noesisAiReady = true;
+    } catch (err) {
+      console.warn('NOESIS Cut-Out: AI module optional, UI continues', err);
+    }
+  })();
+
+  const $ = (id) => document.getElementById(id);
+  const drop = $('drop');
+  const fileInput = $('file');
+  const runBtn = $('runBtn');
+  const dlBtn = $('dlBtn');
+  const resetBtn = $('resetBtn');
+  const chooseBtn = $('chooseBtn');
+  const progWrap = $('progWrap');
+  const progBar = $('progBar');
+  const progText = $('progText');
+  const progPct = $('progPct');
+  const stage = $('stage');
+  const imgBefore = $('imgBefore');
+  const imgAfter = $('imgAfter');
+  const toastHost = $('toastHost');
+
+  const batchSection = $('batchSection');
+  const batchTitle = $('batchTitle');
+  const batchRunBtn = $('batchRunBtn');
+  const batchZipBtn = $('batchZipBtn');
+  const batchClearBtn = $('batchClearBtn');
+  const batchList = $('batchList');
+  const batchProgWrap = $('batchProgWrap');
+  const batchProgBar = $('batchProgBar');
+  const batchProgText = $('batchProgText');
+  const batchProgCount = $('batchProgCount');
+
+  // editor (magic wand + edge refine)
+  const editBtn = $('editBtn');
+  const editorSection = $('editorSection');
+  const editCanvas = $('editCanvas');
+  const overlayCanvas = $('overlayCanvas');
+  const editCloseBtn = $('editCloseBtn');
+  const wandBtn = $('wandBtn');
+  const tolInput = $('tolInput');
+  const tolVal = $('tolVal');
+  const eraseBtn = $('eraseBtn');
+  const invertBtn = $('invertBtn');
+  const clearSelBtn = $('clearSelBtn');
+  const undoBtn = $('undoBtn');
+  const featherInput = $('featherInput');
+  const featherVal = $('featherVal');
+  const despeckleInput = $('despeckleInput');
+  const despeckleVal = $('despeckleVal');
+  const despeckleBtn = $('despeckleBtn');
+  const editDlBtn = $('editDlBtn');
+
+  const state = {
+    file: null,
+    beforeUrl: null,
+    afterBlob: null,
+    afterUrl: null,
+    busy: false,
+  };
+
+  const batchState = {
+    items: [], // {id, file, name, beforeUrl, afterBlob, afterUrl, status, error}
+    busy: false,
+    nextId: 1,
+  };
+
+  /* ---------- i18n (RU default + EN) ---------- */
+  const STRINGS = {
+    ru: {
+      eyebrow: 'AMAImedia · Локальный инструмент',
+      brandSub: 'Удаление фона',
+      hero: 'Удалите фон,<br /><span class="grad">оставьте объект.</span>',
+      lede:
+        'Перетащите изображение и получите чистый прозрачный PNG. Всё работает локально в вашем браузере на нейросети U2-Net — снимки никогда не покидают этот компьютер.',
+      dropTitle: 'Перетащите изображения',
+      dropHint: 'или <span class="pick">выбрать файлы</span> · можно сразу несколько · PNG · JPG · WEBP',
+      run: 'Убрать фон',
+      download: 'Скачать PNG',
+      reset: 'Сброс',
+      choose: 'Выбрать файлы',
+      paneBefore: 'Оригинал',
+      paneAfter: 'Результат',
+      preparing: 'Подготовка…',
+      loadingModel: 'Загрузка модели…',
+      removing: 'Убираю фон…',
+      processing: 'Обработка…',
+      done: 'Готово',
+      okToast: 'Фон убран',
+      notImage: 'Это не изображение.',
+      failGeneric: 'Не удалось убрать фон: ',
+      batchQueueLabel: 'Очередь: ',
+      batchRun: 'Обработать все',
+      batchZip: 'Скачать ZIP',
+      batchClear: 'Очистить очередь',
+      batchQueued: 'В очереди',
+      batchProcessing: 'Обработка…',
+      batchDone: 'Готово',
+      batchError: 'Ошибка',
+      batchRemoveTitle: 'Убрать из очереди',
+      batchSummaryOk: 'Обработано файлов: ',
+      batchZipFail: 'Не удалось собрать ZIP: ',
+      batchNoneReady: 'Сначала нажмите «Обработать все».',
+      edit: 'Ретушь',
+      editorTitle: 'Ретушь и уточнение края',
+      editorHint:
+        'Волшебная палочка: клик — выделить область похожего цвета. <b>Shift</b> — добавить, <b>Ctrl/Alt</b> — вычесть. Работает и после ИИ-выреза (убрать остатки каймы), и по исходнику (ручной вырез без ИИ).',
+      wand: '✦ Волшебная палочка',
+      tolerance: 'Допуск',
+      eraseSel: 'Стереть выделение',
+      invertSel: 'Инвертировать',
+      clearSel: 'Сбросить',
+      undo: 'Отменить',
+      refineTitle: 'Уточнить край',
+      feather: 'Смягчение',
+      despeckle: 'Убрать крапинки',
+      despeckleSize: 'Мин. размер, px',
+      editClose: 'Закрыть редактор',
+      selEmpty: 'Ничего не выделено',
+      erasedToast: 'Выделение стёрто',
+      despeckleNone: 'Мелких пятен не найдено',
+      editOpenFail: 'Не удалось открыть редактор: ',
+    },
+    en: {
+      eyebrow: 'AMAImedia · Local tool',
+      brandSub: 'Background Remover',
+      hero: 'Erase the background,<br /><span class="grad">keep the subject.</span>',
+      lede:
+        'Drop an image and get a clean, transparent PNG. Everything runs locally in your browser using the U2-Net neural model — your pictures never leave this machine.',
+      dropTitle: 'Drop images here',
+      dropHint: 'or <span class="pick">choose files</span> · multiple at once · PNG · JPG · WEBP',
+      run: 'Remove background',
+      download: 'Download PNG',
+      reset: 'Reset',
+      choose: 'Choose files',
+      paneBefore: 'Original',
+      paneAfter: 'Cutout',
+      preparing: 'Preparing…',
+      loadingModel: 'Loading model…',
+      removing: 'Removing background…',
+      processing: 'Processing…',
+      done: 'Done',
+      okToast: 'Background removed',
+      notImage: 'That is not an image file.',
+      failGeneric: 'Background removal failed: ',
+      batchQueueLabel: 'Queue: ',
+      batchRun: 'Process all',
+      batchZip: 'Download ZIP',
+      batchClear: 'Clear queue',
+      batchQueued: 'Queued',
+      batchProcessing: 'Processing…',
+      batchDone: 'Done',
+      batchError: 'Error',
+      batchRemoveTitle: 'Remove from queue',
+      batchSummaryOk: 'Processed: ',
+      batchZipFail: 'Failed to build ZIP: ',
+      batchNoneReady: 'Click "Process all" first.',
+      edit: 'Touch up',
+      editorTitle: 'Touch up & edge refine',
+      editorHint:
+        'Magic wand: click to select a similar-color area. <b>Shift</b> to add, <b>Ctrl/Alt</b> to subtract. Works after the AI cut (clean up leftover fringes) or on a raw image (manual cutout without AI).',
+      wand: '✦ Magic wand',
+      tolerance: 'Tolerance',
+      eraseSel: 'Erase selection',
+      invertSel: 'Invert',
+      clearSel: 'Clear',
+      undo: 'Undo',
+      refineTitle: 'Refine edge',
+      feather: 'Feather',
+      despeckle: 'Despeckle',
+      despeckleSize: 'Min size, px',
+      editClose: 'Close editor',
+      selEmpty: 'Nothing selected',
+      erasedToast: 'Selection erased',
+      despeckleNone: 'No small specks found',
+      editOpenFail: 'Could not open editor: ',
+    },
+    zh: {
+      eyebrow: 'AMAImedia · 本地工具', brandSub: '背景移除',
+      hero: '移除背景，<br /><span class="grad">保留主体。</span>',
+      lede: '拖入图片即可得到干净的透明 PNG。使用 U2-Net 神经网络，全程在浏览器本地运行——照片不会离开这台电脑。',
+      dropTitle: '将图片拖到这里', dropHint: '或 <span class="pick">选择文件</span> · 可多选 · PNG · JPG · WEBP',
+      run: '移除背景', download: '下载 PNG', reset: '重置', choose: '选择文件',
+      paneBefore: '原图', paneAfter: '结果', preparing: '准备中…', loadingModel: '加载模型…',
+      removing: '正在移除背景…', processing: '处理中…', done: '完成', okToast: '背景已移除',
+      notImage: '这不是图片文件。', failGeneric: '移除背景失败：',
+      batchQueueLabel: '队列：', batchRun: '全部处理', batchZip: '下载 ZIP', batchClear: '清空队列',
+      batchQueued: '排队中', batchProcessing: '处理中…', batchDone: '完成', batchError: '错误',
+      batchRemoveTitle: '移出队列', batchSummaryOk: '已处理：', batchZipFail: '生成 ZIP 失败：',
+      batchNoneReady: '请先点击「全部处理」。', edit: '修饰', editorTitle: '修饰与边缘优化',
+      editorHint: '魔棒：点击选择相似颜色区域。<b>Shift</b> 添加，<b>Ctrl/Alt</b> 减去。可用于 AI 抠图后清理边缘，或直接在原图上手动抠图。',
+      wand: '✦ 魔棒', tolerance: '容差', eraseSel: '擦除选区', invertSel: '反选', clearSel: '清除', undo: '撤销',
+      refineTitle: '优化边缘', feather: '羽化', despeckle: '去斑', despeckleSize: '最小尺寸, px',
+      editClose: '关闭编辑器', selEmpty: '未选择任何内容', erasedToast: '选区已擦除',
+      despeckleNone: '未发现小斑点', editOpenFail: '无法打开编辑器：',
+    },
+    hi: {
+      eyebrow: 'AMAImedia · स्थानीय टूल', brandSub: 'बैकग्राउंड हटाना',
+      hero: 'बैकग्राउंड हटाएं,<br /><span class="grad">विषय रखें।</span>',
+      lede: 'छवि डालें और साफ़ पारदर्शी PNG पाएं। सब कुछ U2-Net मॉडल से आपके ब्राउज़र में लोकल चलता है — आपकी तस्वीरें इस कंप्यूटर से बाहर नहीं जातीं।',
+      dropTitle: 'छवियाँ यहाँ डालें', dropHint: 'या <span class="pick">फ़ाइलें चुनें</span> · कई एक साथ · PNG · JPG · WEBP',
+      run: 'बैकग्राउंड हटाएं', download: 'PNG डाउनलोड करें', reset: 'रीसेट', choose: 'फ़ाइलें चुनें',
+      paneBefore: 'मूल', paneAfter: 'परिणाम', preparing: 'तैयारी…', loadingModel: 'मॉडल लोड हो रहा है…',
+      removing: 'बैकग्राउंड हटाया जा रहा है…', processing: 'प्रोसेस हो रहा है…', done: 'पूर्ण', okToast: 'बैकग्राउंड हट गया',
+      notImage: 'यह इमेज फ़ाइल नहीं है।', failGeneric: 'बैकग्राउंड हटाने में विफल:',
+      batchQueueLabel: 'कतार:', batchRun: 'सभी प्रोसेस करें', batchZip: 'ZIP डाउनलोड करें', batchClear: 'कतार साफ़ करें',
+      batchQueued: 'कतार में', batchProcessing: 'प्रोसेस हो रहा है…', batchDone: 'पूर्ण', batchError: 'त्रुटि',
+      batchRemoveTitle: 'कतार से हटाएं', batchSummaryOk: 'प्रोसेस हुए:', batchZipFail: 'ZIP बनाने में विफल:',
+      batchNoneReady: 'पहले "सभी प्रोसेस करें" दबाएं।', edit: 'सुधार', editorTitle: 'सुधार व किनारा निखार',
+      editorHint: 'मैजिक वैंड: समान रंग वाला क्षेत्र चुनने के लिए क्लिक करें। <b>Shift</b> जोड़ने, <b>Ctrl/Alt</b> घटाने के लिए। AI कट के बाद या मूल छवि पर काम आता है।',
+      wand: '✦ मैजिक वैंड', tolerance: 'सहनशीलता', eraseSel: 'चयन मिटाएं', invertSel: 'उलटें', clearSel: 'साफ़ करें', undo: 'पूर्ववत',
+      refineTitle: 'किनारा निखारें', feather: 'फ़ेदर', despeckle: 'धब्बे हटाएं', despeckleSize: 'न्यूनतम आकार, px',
+      editClose: 'एडिटर बंद करें', selEmpty: 'कुछ चयनित नहीं', erasedToast: 'चयन मिटा दिया गया',
+      despeckleNone: 'छोटे धब्बे नहीं मिले', editOpenFail: 'एडिटर खोलने में विफल:',
+    },
+    es: {
+      eyebrow: 'AMAImedia · Herramienta local', brandSub: 'Eliminar fondo',
+      hero: 'Elimina el fondo,<br /><span class="grad">conserva el sujeto.</span>',
+      lede: 'Suelta una imagen y obtén un PNG transparente limpio. Todo corre localmente en tu navegador con el modelo U2-Net: tus fotos nunca salen de este equipo.',
+      dropTitle: 'Suelta las imágenes aquí', dropHint: 'o <span class="pick">elige archivos</span> · varios a la vez · PNG · JPG · WEBP',
+      run: 'Quitar fondo', download: 'Descargar PNG', reset: 'Restablecer', choose: 'Elegir archivos',
+      paneBefore: 'Original', paneAfter: 'Resultado', preparing: 'Preparando…', loadingModel: 'Cargando modelo…',
+      removing: 'Quitando fondo…', processing: 'Procesando…', done: 'Listo', okToast: 'Fondo eliminado',
+      notImage: 'No es un archivo de imagen.', failGeneric: 'No se pudo quitar el fondo:',
+      batchQueueLabel: 'Cola:', batchRun: 'Procesar todo', batchZip: 'Descargar ZIP', batchClear: 'Vaciar cola',
+      batchQueued: 'En cola', batchProcessing: 'Procesando…', batchDone: 'Listo', batchError: 'Error',
+      batchRemoveTitle: 'Quitar de la cola', batchSummaryOk: 'Procesados:', batchZipFail: 'No se pudo crear ZIP:',
+      batchNoneReady: 'Primero pulsa "Procesar todo".', edit: 'Retoque', editorTitle: 'Retoque y refinado de bordes',
+      editorHint: 'Varita mágica: haz clic para seleccionar un área de color similar. <b>Shift</b> añade, <b>Ctrl/Alt</b> resta. Sirve tras el recorte con IA o sobre la imagen original.',
+      wand: '✦ Varita mágica', tolerance: 'Tolerancia', eraseSel: 'Borrar selección', invertSel: 'Invertir', clearSel: 'Limpiar', undo: 'Deshacer',
+      refineTitle: 'Refinar borde', feather: 'Suavizado', despeckle: 'Quitar motas', despeckleSize: 'Tamaño mín., px',
+      editClose: 'Cerrar editor', selEmpty: 'Nada seleccionado', erasedToast: 'Selección borrada',
+      despeckleNone: 'No se encontraron motas', editOpenFail: 'No se pudo abrir el editor:',
+    },
+    ar: {
+      eyebrow: 'AMAImedia · أداة محلية', brandSub: 'إزالة الخلفية',
+      hero: 'أزل الخلفية،<br /><span class="grad">وأبقِ على العنصر.</span>',
+      lede: 'أسقط الصورة واحصل على PNG شفاف نظيف. كل شيء يعمل محلياً في متصفحك عبر نموذج U2-Net — صورك لا تغادر هذا الجهاز أبداً.',
+      dropTitle: 'أسقط الصور هنا', dropHint: 'أو <span class="pick">اختر الملفات</span> · عدة ملفات معاً · PNG · JPG · WEBP',
+      run: 'إزالة الخلفية', download: 'تنزيل PNG', reset: 'إعادة ضبط', choose: 'اختر الملفات',
+      paneBefore: 'الأصل', paneAfter: 'النتيجة', preparing: 'جارٍ التحضير…', loadingModel: 'جارٍ تحميل النموذج…',
+      removing: 'جارٍ إزالة الخلفية…', processing: 'جارٍ المعالجة…', done: 'تم', okToast: 'تمت إزالة الخلفية',
+      notImage: 'هذا ليس ملف صورة.', failGeneric: 'فشلت إزالة الخلفية:',
+      batchQueueLabel: 'قائمة الانتظار:', batchRun: 'معالجة الكل', batchZip: 'تنزيل ZIP', batchClear: 'مسح القائمة',
+      batchQueued: 'في الانتظار', batchProcessing: 'جارٍ المعالجة…', batchDone: 'تم', batchError: 'خطأ',
+      batchRemoveTitle: 'إزالة من القائمة', batchSummaryOk: 'تمت المعالجة:', batchZipFail: 'فشل إنشاء ZIP:',
+      batchNoneReady: 'اضغط "معالجة الكل" أولاً.', edit: 'تنقيح', editorTitle: 'التنقيح وصقل الحواف',
+      editorHint: 'العصا السحرية: انقر لتحديد منطقة بلون مشابه. <b>Shift</b> للإضافة، <b>Ctrl/Alt</b> للطرح. تعمل بعد قص الذكاء الاصطناعي أو على الصورة الأصلية.',
+      wand: '✦ العصا السحرية', tolerance: 'التسامح', eraseSel: 'مسح التحديد', invertSel: 'عكس', clearSel: 'مسح', undo: 'تراجع',
+      refineTitle: 'صقل الحافة', feather: 'تنعيم', despeckle: 'إزالة البقع', despeckleSize: 'أدنى حجم, px',
+      editClose: 'إغلاق المحرر', selEmpty: 'لا شيء محدد', erasedToast: 'تم مسح التحديد',
+      despeckleNone: 'لا توجد بقع صغيرة', editOpenFail: 'تعذر فتح المحرر:',
+    },
+    fr: {
+      eyebrow: 'AMAImedia · Outil local', brandSub: 'Supprimer le fond',
+      hero: 'Supprimez le fond,<br /><span class="grad">gardez le sujet.</span>',
+      lede: 'Déposez une image et obtenez un PNG transparent net. Tout s’exécute localement dans votre navigateur avec le modèle U2-Net — vos photos ne quittent jamais cet ordinateur.',
+      dropTitle: 'Déposez les images ici', dropHint: 'ou <span class="pick">choisir des fichiers</span> · plusieurs à la fois · PNG · JPG · WEBP',
+      run: 'Supprimer le fond', download: 'Télécharger le PNG', reset: 'Réinitialiser', choose: 'Choisir des fichiers',
+      paneBefore: 'Original', paneAfter: 'Résultat', preparing: 'Préparation…', loadingModel: 'Chargement du modèle…',
+      removing: 'Suppression du fond…', processing: 'Traitement…', done: 'Terminé', okToast: 'Fond supprimé',
+      notImage: 'Ce n’est pas un fichier image.', failGeneric: 'Échec de la suppression du fond :',
+      batchQueueLabel: 'File :', batchRun: 'Tout traiter', batchZip: 'Télécharger le ZIP', batchClear: 'Vider la file',
+      batchQueued: 'En file', batchProcessing: 'Traitement…', batchDone: 'Terminé', batchError: 'Erreur',
+      batchRemoveTitle: 'Retirer de la file', batchSummaryOk: 'Traités :', batchZipFail: 'Échec de création du ZIP :',
+      batchNoneReady: 'Cliquez d’abord sur « Tout traiter ».', edit: 'Retouche', editorTitle: 'Retouche et affinage des bords',
+      editorHint: 'Baguette magique : cliquez pour sélectionner une zone de couleur similaire. <b>Maj</b> ajoute, <b>Ctrl/Alt</b> soustrait. Utile après la découpe IA ou sur l’image d’origine.',
+      wand: '✦ Baguette magique', tolerance: 'Tolérance', eraseSel: 'Effacer la sélection', invertSel: 'Inverser', clearSel: 'Effacer', undo: 'Annuler',
+      refineTitle: 'Affiner le bord', feather: 'Adoucissement', despeckle: 'Retirer les taches', despeckleSize: 'Taille min., px',
+      editClose: 'Fermer l’éditeur', selEmpty: 'Rien de sélectionné', erasedToast: 'Sélection effacée',
+      despeckleNone: 'Aucune petite tache trouvée', editOpenFail: 'Impossible d’ouvrir l’éditeur :',
+    },
+    bn: {
+      eyebrow: 'AMAImedia · স্থানীয় টুল', brandSub: 'ব্যাকগ্রাউন্ড অপসারণ',
+      hero: 'ব্যাকগ্রাউন্ড মুছুন,<br /><span class="grad">বিষয়বস্তু রাখুন।</span>',
+      lede: 'ছবি ফেলুন এবং পরিষ্কার স্বচ্ছ PNG পান। সবকিছু U2-Net মডেলে আপনার ব্রাউজারে স্থানীয়ভাবে চলে — আপনার ছবি কখনো এই কম্পিউটার ছেড়ে যায় না।',
+      dropTitle: 'এখানে ছবি ফেলুন', dropHint: 'অথবা <span class="pick">ফাইল নির্বাচন করুন</span> · একসাথে একাধিক · PNG · JPG · WEBP',
+      run: 'ব্যাকগ্রাউন্ড মুছুন', download: 'PNG ডাউনলোড', reset: 'রিসেট', choose: 'ফাইল নির্বাচন',
+      paneBefore: 'মূল', paneAfter: 'ফলাফল', preparing: 'প্রস্তুতি…', loadingModel: 'মডেল লোড হচ্ছে…',
+      removing: 'ব্যাকগ্রাউন্ড সরানো হচ্ছে…', processing: 'প্রক্রিয়া হচ্ছে…', done: 'সম্পন্ন', okToast: 'ব্যাকগ্রাউন্ড সরানো হয়েছে',
+      notImage: 'এটি ছবির ফাইল নয়।', failGeneric: 'ব্যাকগ্রাউন্ড অপসারণ ব্যর্থ:',
+      batchQueueLabel: 'সারি:', batchRun: 'সব প্রক্রিয়া করুন', batchZip: 'ZIP ডাউনলোড', batchClear: 'সারি খালি করুন',
+      batchQueued: 'সারিতে আছে', batchProcessing: 'প্রক্রিয়া হচ্ছে…', batchDone: 'সম্পন্ন', batchError: 'ত্রুটি',
+      batchRemoveTitle: 'সারি থেকে সরান', batchSummaryOk: 'প্রক্রিয়া হয়েছে:', batchZipFail: 'ZIP তৈরি ব্যর্থ:',
+      batchNoneReady: 'প্রথমে "সব প্রক্রিয়া করুন" চাপুন।', edit: 'সংশোধন', editorTitle: 'সংশোধন ও প্রান্ত পরিশোধন',
+      editorHint: 'ম্যাজিক ওয়ান্ড: একই রঙের এলাকা নির্বাচন করতে ক্লিক করুন। <b>Shift</b> যোগ করতে, <b>Ctrl/Alt</b> বিয়োগ করতে। AI কাটের পরে বা মূল ছবিতে কাজ করে।',
+      wand: '✦ ম্যাজিক ওয়ান্ড', tolerance: 'সহনশীলতা', eraseSel: 'নির্বাচন মুছুন', invertSel: 'উল্টান', clearSel: 'পরিষ্কার', undo: 'পূর্বাবস্থা',
+      refineTitle: 'প্রান্ত পরিশোধন', feather: 'ফেদার', despeckle: 'দাগ দূর করুন', despeckleSize: 'ন্যূনতম আকার, px',
+      editClose: 'এডিটর বন্ধ করুন', selEmpty: 'কিছু নির্বাচিত নেই', erasedToast: 'নির্বাচন মুছে ফেলা হয়েছে',
+      despeckleNone: 'ছোট দাগ পাওয়া যায়নি', editOpenFail: 'এডিটর খুলতে ব্যর্থ:',
+    },
+    pt: {
+      eyebrow: 'AMAImedia · Ferramenta local', brandSub: 'Remover fundo',
+      hero: 'Remova o fundo,<br /><span class="grad">mantenha o objeto.</span>',
+      lede: 'Solte uma imagem e obtenha um PNG transparente limpo. Tudo roda localmente no seu navegador com o modelo U2-Net — suas fotos nunca saem deste computador.',
+      dropTitle: 'Solte as imagens aqui', dropHint: 'ou <span class="pick">escolher arquivos</span> · vários de uma vez · PNG · JPG · WEBP',
+      run: 'Remover fundo', download: 'Baixar PNG', reset: 'Redefinir', choose: 'Escolher arquivos',
+      paneBefore: 'Original', paneAfter: 'Resultado', preparing: 'Preparando…', loadingModel: 'Carregando modelo…',
+      removing: 'Removendo fundo…', processing: 'Processando…', done: 'Concluído', okToast: 'Fundo removido',
+      notImage: 'Não é um arquivo de imagem.', failGeneric: 'Falha ao remover o fundo:',
+      batchQueueLabel: 'Fila:', batchRun: 'Processar tudo', batchZip: 'Baixar ZIP', batchClear: 'Limpar fila',
+      batchQueued: 'Na fila', batchProcessing: 'Processando…', batchDone: 'Concluído', batchError: 'Erro',
+      batchRemoveTitle: 'Remover da fila', batchSummaryOk: 'Processados:', batchZipFail: 'Falha ao criar ZIP:',
+      batchNoneReady: 'Clique em "Processar tudo" primeiro.', edit: 'Retoque', editorTitle: 'Retoque e refinamento de borda',
+      editorHint: 'Varinha mágica: clique para selecionar uma área de cor semelhante. <b>Shift</b> adiciona, <b>Ctrl/Alt</b> subtrai. Funciona após o recorte com IA ou na imagem original.',
+      wand: '✦ Varinha mágica', tolerance: 'Tolerância', eraseSel: 'Apagar seleção', invertSel: 'Inverter', clearSel: 'Limpar', undo: 'Desfazer',
+      refineTitle: 'Refinar borda', feather: 'Suavização', despeckle: 'Remover manchas', despeckleSize: 'Tamanho mín., px',
+      editClose: 'Fechar editor', selEmpty: 'Nada selecionado', erasedToast: 'Seleção apagada',
+      despeckleNone: 'Nenhuma mancha pequena encontrada', editOpenFail: 'Não foi possível abrir o editor:',
+    },
+    ja: {
+      eyebrow: 'AMAImedia · ローカルツール', brandSub: '背景を削除',
+      hero: '背景を削除し、<br /><span class="grad">被写体を残します。</span>',
+      lede: '画像をドロップすると、きれいな透過 PNG が得られます。すべて U2-Net モデルでブラウザ内ローカルに動作します——写真がこのパソコンから出ることはありません。',
+      dropTitle: '画像をここにドロップ', dropHint: 'または <span class="pick">ファイルを選択</span> · 複数可 · PNG · JPG · WEBP',
+      run: '背景を削除', download: 'PNG をダウンロード', reset: 'リセット', choose: 'ファイルを選択',
+      paneBefore: '元画像', paneAfter: '結果', preparing: '準備中…', loadingModel: 'モデル読み込み中…',
+      removing: '背景を削除中…', processing: '処理中…', done: '完了', okToast: '背景を削除しました',
+      notImage: '画像ファイルではありません。', failGeneric: '背景の削除に失敗:',
+      batchQueueLabel: 'キュー:', batchRun: 'すべて処理', batchZip: 'ZIP をダウンロード', batchClear: 'キューをクリア',
+      batchQueued: '待機中', batchProcessing: '処理中…', batchDone: '完了', batchError: 'エラー',
+      batchRemoveTitle: 'キューから削除', batchSummaryOk: '処理済み:', batchZipFail: 'ZIP の作成に失敗:',
+      batchNoneReady: '先に「すべて処理」を押してください。', edit: 'レタッチ', editorTitle: 'レタッチとエッジ補正',
+      editorHint: '魔法の杖: クリックで同系色の領域を選択。<b>Shift</b> で追加、<b>Ctrl/Alt</b> で削減。AI 切り抜き後のふちの掃除や元画像での手動切り抜きに使えます。',
+      wand: '✦ 魔法の杖', tolerance: '許容値', eraseSel: '選択を消去', invertSel: '反転', clearSel: 'クリア', undo: '元に戻す',
+      refineTitle: 'エッジを補正', feather: 'フェザー', despeckle: '斑点を除去', despeckleSize: '最小サイズ, px',
+      editClose: 'エディタを閉じる', selEmpty: '何も選択されていません', erasedToast: '選択を消去しました',
+      despeckleNone: '小さな斑点は見つかりません', editOpenFail: 'エディタを開けません:',
+    },
+  };
+  const LANG_KEY = 'noesis-cutout-lang';
+  let LANG = localStorage.getItem(LANG_KEY);
+  if (!STRINGS[LANG]) LANG = 'en';
+  const t = (key) => (STRINGS[LANG] && STRINGS[LANG][key]) || STRINGS.en[key] || key;
+
+  const langBtn = $('langBtn');
+  function renderLang() {
+    document.documentElement.setAttribute('lang', LANG);
+    const setText = (id, value, html) => {
+      const el = $(id);
+      if (!el) return;
+      if (html) el.innerHTML = value;
+      else el.textContent = value;
+    };
+    setText('eyebrow', t('eyebrow'));
+    setText('brandSub', t('brandSub'));
+    setText('hero', t('hero'), true);
+    $('lede').textContent = t('lede');
+    $('dropTitle').textContent = t('dropTitle');
+    $('dropHint').innerHTML = t('dropHint');
+    runBtn.textContent = t('run');
+    dlBtn.textContent = t('download');
+    resetBtn.textContent = t('reset');
+    chooseBtn.textContent = t('choose');
+    $('paneBefore').textContent = t('paneBefore');
+    $('paneAfter').textContent = t('paneAfter');
+    imgBefore.alt = t('paneBefore');
+    imgAfter.alt = t('paneAfter');
+    batchRunBtn.textContent = t('batchRun');
+    batchZipBtn.textContent = t('batchZip');
+    batchClearBtn.textContent = t('batchClear');
+    editBtn.textContent = t('edit');
+    $('editorTitle').textContent = t('editorTitle');
+    $('editorHint').innerHTML = t('editorHint');
+    wandBtn.textContent = t('wand');
+    $('tolLabel').textContent = t('tolerance');
+    eraseBtn.textContent = t('eraseSel');
+    invertBtn.textContent = t('invertSel');
+    clearSelBtn.textContent = t('clearSel');
+    undoBtn.textContent = t('undo');
+    $('refineTitle').textContent = t('refineTitle');
+    $('featherLabel').textContent = t('feather');
+    $('despeckleLabelText').textContent = t('despeckleSize');
+    despeckleBtn.textContent = t('despeckle');
+    editDlBtn.textContent = t('download');
+    editCloseBtn.title = t('editClose');
+    renderBatchList();
+    renderLangBtn();
+  }
+  function renderLangBtn() {
+    const LANGS = (typeof NOESIS_LANGS !== 'undefined') ? NOESIS_LANGS : null;
+    if (!LANGS) { langBtn.textContent = LANG.toUpperCase(); return; }
+    const meta = LANGS.find(l => l.code === LANG) || LANGS[0];
+    langBtn.innerHTML = '<img src="vendor/flags/' + meta.flag + '.png" style="width:20px;height:14px;border-radius:2px;object-fit:cover;vertical-align:-2px" /> <span style="font-size:12px">' + meta.native + '</span> <span style="font-size:10px;opacity:.6">▾</span>';
+  }
+  let langMenuEl = null;
+  function toggleLangMenu() {
+    const LANGS = (typeof NOESIS_LANGS !== 'undefined') ? NOESIS_LANGS : null;
+    if (langMenuEl && document.body.contains(langMenuEl)) { langMenuEl.remove(); langMenuEl = null; return; }
+    if (!LANGS) return;
+    const r = langBtn.getBoundingClientRect();
+    langMenuEl = document.createElement('div');
+    langMenuEl.style.cssText = 'position:fixed;top:' + (r.bottom + 6) + 'px;right:' + (window.innerWidth - r.right) + 'px;min-width:190px;background:var(--bg-2,#0c0c1a);border:1px solid var(--border,rgba(255,255,255,.14));border-radius:10px;padding:4px;z-index:9999;box-shadow:0 12px 32px rgba(0,0,0,.4)';
+    LANGS.forEach(l => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.style.cssText = 'display:grid;grid-template-columns:26px 1fr;align-items:center;gap:8px;width:100%;padding:7px 10px;border:0;background:' + (l.code === LANG ? 'var(--surface-2,rgba(255,255,255,.08))' : 'transparent') + ';border-radius:6px;color:var(--text,#fff);cursor:pointer;font-size:13px;text-align:left;font-family:inherit';
+      b.innerHTML = '<img src="vendor/flags/' + l.flag + '.png" style="width:20px;height:14px;border-radius:2px;object-fit:cover" />' + '<span>' + l.native + '</span>';
+      b.addEventListener('click', () => {
+        LANG = l.code;
+        localStorage.setItem(LANG_KEY, LANG);
+        if (langMenuEl) { langMenuEl.remove(); langMenuEl = null; }
+        renderLang();
+      });
+      langMenuEl.appendChild(b);
+    });
+    document.body.appendChild(langMenuEl);
+  }
+  langBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleLangMenu(); });
+  document.addEventListener('click', () => { if (langMenuEl && document.body.contains(langMenuEl)) { langMenuEl.remove(); langMenuEl = null; } });
+  renderLang();
+
+  /* ---------- theme ---------- */
+  const themeBtn = $('themeBtn');
+  const KEY = 'noesis-cutout-theme';
+  const saved = localStorage.getItem(KEY);
+  if (saved === 'light' || saved === 'dark') document.documentElement.setAttribute('data-theme', saved);
+  themeBtn.addEventListener('click', () => {
+    const cur =
+      document.documentElement.getAttribute('data-theme') ||
+      (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    const next = cur === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem(KEY, next);
+  });
+
+  /* ---------- toast ---------- */
+  function toast(msg, kind = '') {
+    const el = document.createElement('div');
+    el.className = 'toast' + (kind ? ' ' + kind : '');
+    el.textContent = msg;
+    toastHost.appendChild(el);
+    setTimeout(() => {
+      el.style.transition = 'opacity .4s, transform .4s';
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(10px)';
+      setTimeout(() => el.remove(), 420);
+    }, kind === 'err' ? 6000 : 3200);
+  }
+
+  /* ---------- file handling ---------- */
+  function setFile(file) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast(t('notImage'), 'err');
+      return;
+    }
+    if (state.beforeUrl) URL.revokeObjectURL(state.beforeUrl);
+    if (state.afterUrl) URL.revokeObjectURL(state.afterUrl);
+    state.file = file;
+    state.afterBlob = null;
+    state.afterUrl = null;
+    state.beforeUrl = URL.createObjectURL(file);
+
+    imgBefore.src = state.beforeUrl;
+    imgAfter.removeAttribute('src');
+    stage.classList.remove('stage-hidden');
+
+    runBtn.disabled = false;
+    resetBtn.disabled = false;
+    dlBtn.disabled = true;
+    editBtn.disabled = false;
+    closeEditor();
+    progWrap.classList.remove('on');
+  }
+
+  drop.addEventListener('click', () => fileInput.click());
+  chooseBtn.addEventListener('click', () => fileInput.click());
+  drop.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInput.click();
+    }
+  });
+  fileInput.addEventListener('change', (e) => {
+    handleIncomingFiles(e.target.files);
+    fileInput.value = '';
+  });
+
+  ['dragenter', 'dragover'].forEach((ev) =>
+    drop.addEventListener(ev, (e) => {
+      e.preventDefault();
+      drop.classList.add('drag');
+    })
+  );
+  ['dragleave', 'dragend'].forEach((ev) =>
+    drop.addEventListener(ev, (e) => {
+      e.preventDefault();
+      drop.classList.remove('drag');
+    })
+  );
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('drag');
+    handleIncomingFiles(e.dataTransfer && e.dataTransfer.files);
+  });
+  // allow pasting one or more images
+  window.addEventListener('paste', (e) => {
+    const items = [...(e.clipboardData?.items || [])].filter((i) => i.type.startsWith('image/'));
+    const files = items.map((i) => i.getAsFile()).filter(Boolean);
+    if (files.length) handleIncomingFiles(files);
+  });
+
+  /* ---------- routing: single file -> legacy pane view, 2+ -> batch queue ---------- */
+  function handleIncomingFiles(fileList) {
+    const files = fileList ? [...fileList] : [];
+    if (files.length === 0) return;
+    if (batchState.items.length === 0 && files.length === 1) {
+      setFile(files[0]);
+      return;
+    }
+    addBatchFiles(files);
+  }
+
+  /* ---------- progress ---------- */
+  function setProgress(pct, label) {
+    progWrap.classList.add('on');
+    const p = Math.max(0, Math.min(100, Math.round(pct)));
+    progBar.style.width = p + '%';
+    progPct.textContent = p + '%';
+    if (label) progText.textContent = label;
+  }
+
+  /* ---------- run ---------- */
+  runBtn.addEventListener('click', async () => {
+    if (!state.file || state.busy) return;
+    state.busy = true;
+    runBtn.disabled = true;
+    resetBtn.disabled = true;
+    dlBtn.disabled = true;
+    setProgress(2, t('loadingModel'));
+
+    try {
+      if (!removeBackground) {
+        for (let i = 0; i < 150 && !removeBackground; i++) await new Promise((r) => setTimeout(r, 200));
+      }
+      if (!removeBackground) throw new Error(t('aiUnavailable') || 'AI module not ready');
+      const blob = await removeBackground(state.file, {
+        publicPath: CDN_BASE,
+        progress: (key, current, total) => {
+          const frac = total ? current / total : 0;
+          let label = t('processing');
+          if (/fetch|download/i.test(key)) label = t('loadingModel');
+          else if (/compute|inference|process/i.test(key)) label = t('removing');
+          setProgress(frac * 100, label);
+        },
+      });
+
+      state.afterBlob = blob;
+      if (state.afterUrl) URL.revokeObjectURL(state.afterUrl);
+      state.afterUrl = URL.createObjectURL(blob);
+      imgAfter.src = state.afterUrl;
+
+      setProgress(100, t('done'));
+      setTimeout(() => progWrap.classList.remove('on'), 900);
+      dlBtn.disabled = false;
+      toast(t('okToast'), 'ok');
+    } catch (err) {
+      console.error(err);
+      progWrap.classList.remove('on');
+      const msg = (err && err.message) || String(err);
+      toast(t('failGeneric') + msg, 'err');
+    } finally {
+      state.busy = false;
+      runBtn.disabled = false;
+      resetBtn.disabled = false;
+    }
+  });
+
+  /* ---------- download ---------- */
+  function cutoutName(name) {
+    const dot = name.lastIndexOf('.');
+    const base = dot > 0 ? name.slice(0, dot) : name;
+    return base + '-cutout.png';
+  }
+  function doDownload() {
+    if (!state.afterBlob) return;
+    const a = document.createElement('a');
+    a.href = state.afterUrl;
+    a.download = cutoutName(state.file ? state.file.name : 'image.png');
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+  dlBtn.addEventListener('click', doDownload);
+
+  /* ---------- reset ---------- */
+  function resetSingle() {
+    if (state.beforeUrl) URL.revokeObjectURL(state.beforeUrl);
+    if (state.afterUrl) URL.revokeObjectURL(state.afterUrl);
+    state.file = null;
+    state.beforeUrl = null;
+    state.afterBlob = null;
+    state.afterUrl = null;
+    fileInput.value = '';
+    imgBefore.removeAttribute('src');
+    imgAfter.removeAttribute('src');
+    stage.classList.add('stage-hidden');
+    runBtn.disabled = true;
+    dlBtn.disabled = true;
+    resetBtn.disabled = true;
+    editBtn.disabled = true;
+    closeEditor();
+    progWrap.classList.remove('on');
+  }
+  resetBtn.addEventListener('click', resetSingle);
+
+  /* ---------- batch queue (2+ files) ---------- */
+  function setSingleControlsVisible(visible) {
+    const d = visible ? '' : 'none';
+    runBtn.style.display = d;
+    dlBtn.style.display = d;
+    resetBtn.style.display = d;
+    editBtn.style.display = d;
+  }
+
+  function enterBatchMode() {
+    resetSingle();
+    setSingleControlsVisible(false);
+    batchSection.classList.remove('stage-hidden');
+  }
+
+  function exitBatchMode() {
+    batchSection.classList.add('stage-hidden');
+    setSingleControlsVisible(true);
+    batchProgWrap.classList.remove('on');
+    batchList.innerHTML = '';
+  }
+
+  function addBatchFiles(fileList) {
+    const files = [...fileList].filter((f) => f.type.startsWith('image/'));
+    if (files.length === 0) {
+      toast(t('notImage'), 'err');
+      return;
+    }
+    if (batchState.items.length === 0) enterBatchMode();
+    for (const file of files) {
+      batchState.items.push({
+        id: batchState.nextId++,
+        file,
+        name: file.name,
+        beforeUrl: URL.createObjectURL(file),
+        afterBlob: null,
+        afterUrl: null,
+        status: 'pending',
+        error: null,
+      });
+    }
+    renderBatchList();
+    updateBatchButtons();
+  }
+
+  function removeBatchItem(id) {
+    const idx = batchState.items.findIndex((it) => it.id === id);
+    if (idx === -1) return;
+    const [item] = batchState.items.splice(idx, 1);
+    if (item.beforeUrl) URL.revokeObjectURL(item.beforeUrl);
+    if (item.afterUrl) URL.revokeObjectURL(item.afterUrl);
+    if (batchState.items.length === 0) {
+      exitBatchMode();
+    } else {
+      renderBatchList();
+      updateBatchButtons();
+    }
+  }
+
+  function updateBatchButtons() {
+    const hasPending = batchState.items.some((it) => it.status !== 'done');
+    const hasDone = batchState.items.some((it) => it.status === 'done');
+    batchRunBtn.disabled = batchState.busy || !hasPending;
+    batchZipBtn.disabled = batchState.busy || !hasDone;
+    batchClearBtn.disabled = batchState.busy || batchState.items.length === 0;
+  }
+
+  function batchStatusLabel(item) {
+    if (item.status === 'processing') return t('batchProcessing');
+    if (item.status === 'done') return t('batchDone');
+    if (item.status === 'error') return t('batchError') + (item.error ? ': ' + item.error : '');
+    return t('batchQueued');
+  }
+
+  function renderBatchList() {
+    batchTitle.textContent = t('batchQueueLabel') + batchState.items.length;
+    batchList.innerHTML = '';
+    batchState.items.forEach((item) => {
+      const row = document.createElement('div');
+      row.className = 'batch-item';
+
+      const thumbs = document.createElement('div');
+      thumbs.className = 'batch-thumbs';
+      const before = document.createElement('div');
+      before.className = 'batch-thumb';
+      const beforeImg = document.createElement('img');
+      beforeImg.src = item.beforeUrl;
+      beforeImg.alt = '';
+      before.appendChild(beforeImg);
+      thumbs.appendChild(before);
+
+      if (item.afterUrl) {
+        const arrow = document.createElement('span');
+        arrow.className = 'batch-arrow';
+        arrow.textContent = String.fromCharCode(8594); // ->
+        thumbs.appendChild(arrow);
+        const after = document.createElement('div');
+        after.className = 'batch-thumb checker';
+        const afterImg = document.createElement('img');
+        afterImg.src = item.afterUrl;
+        afterImg.alt = '';
+        after.appendChild(afterImg);
+        thumbs.appendChild(after);
+      }
+
+      const info = document.createElement('div');
+      info.className = 'batch-info';
+      const name = document.createElement('div');
+      name.className = 'batch-name';
+      name.textContent = item.name;
+      const status = document.createElement('div');
+      status.className = 'batch-status ' + item.status;
+      status.textContent = batchStatusLabel(item);
+      info.appendChild(name);
+      info.appendChild(status);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'batch-remove';
+      removeBtn.type = 'button';
+      removeBtn.title = t('batchRemoveTitle');
+      removeBtn.textContent = String.fromCharCode(215); // x
+      removeBtn.disabled = batchState.busy;
+      removeBtn.addEventListener('click', () => removeBatchItem(item.id));
+
+      row.appendChild(thumbs);
+      row.appendChild(info);
+      row.appendChild(removeBtn);
+      batchList.appendChild(row);
+    });
+  }
+
+  function setBatchProgress(pct) {
+    const p = Math.max(0, Math.min(100, Math.round(pct)));
+    batchProgBar.style.width = p + '%';
+  }
+
+  batchRunBtn.addEventListener('click', async () => {
+    if (batchState.busy) return;
+    const pending = batchState.items.filter((it) => it.status !== 'done');
+    if (pending.length === 0) return;
+    batchState.busy = true;
+    updateBatchButtons();
+    renderBatchList();
+    batchProgWrap.classList.add('on');
+
+    let okCount = 0;
+    for (let i = 0; i < pending.length; i++) {
+      const item = pending[i];
+      item.status = 'processing';
+      item.error = null;
+      renderBatchList();
+      batchProgText.textContent = t('batchProcessing');
+      batchProgCount.textContent = (i + 1) + ' / ' + pending.length;
+      setBatchProgress((i / pending.length) * 100);
+
+      try {
+        if (!removeBackground) {
+          for (let w = 0; w < 150 && !removeBackground; w++) await new Promise((r) => setTimeout(r, 200));
+        }
+        if (!removeBackground) throw new Error('AI module not ready');
+        const blob = await removeBackground(item.file, {
+          publicPath: CDN_BASE,
+          progress: (key, current, total) => {
+            const frac = total ? current / total : 0;
+            setBatchProgress((i / pending.length) * 100 + frac * (100 / pending.length));
+          },
+        });
+        item.afterBlob = blob;
+        if (item.afterUrl) URL.revokeObjectURL(item.afterUrl);
+        item.afterUrl = URL.createObjectURL(blob);
+        item.status = 'done';
+        okCount++;
+      } catch (err) {
+        console.error(err);
+        item.status = 'error';
+        item.error = (err && err.message) || String(err);
+      }
+      renderBatchList();
+    }
+
+    setBatchProgress(100);
+    setTimeout(() => batchProgWrap.classList.remove('on'), 900);
+    batchState.busy = false;
+    updateBatchButtons();
+    renderBatchList();
+    toast(t('batchSummaryOk') + okCount + ' / ' + pending.length, okCount === pending.length ? 'ok' : 'err');
+  });
+
+  function uniqueZipName(name, used) {
+    if (!used.has(name)) {
+      used.add(name);
+      return name;
+    }
+    const dot = name.lastIndexOf('.');
+    const base = dot > 0 ? name.slice(0, dot) : name;
+    const ext = dot > 0 ? name.slice(dot) : '';
+    let n = 2;
+    let candidate = base + '_' + n + ext;
+    while (used.has(candidate)) {
+      n += 1;
+      candidate = base + '_' + n + ext;
+    }
+    used.add(candidate);
+    return candidate;
+  }
+
+  function triggerBatchDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  batchZipBtn.addEventListener('click', async () => {
+    const done = batchState.items.filter((it) => it.status === 'done' && it.afterBlob);
+    if (done.length === 0) {
+      toast(t('batchNoneReady'), 'err');
+      return;
+    }
+    batchZipBtn.disabled = true;
+    try {
+      const form = new FormData();
+      const used = new Set();
+      for (const item of done) {
+        form.append('image', item.afterBlob, uniqueZipName(cutoutName(item.name), used));
+      }
+      const resp = await fetch('/zip', { method: 'POST', body: form });
+      if (!resp.ok) {
+        let msg = 'HTTP ' + resp.status;
+        try {
+          const j = await resp.json();
+          if (j && j.error) msg = j.error;
+        } catch (_e) {
+          /* ignore parse failure, keep generic message */
+        }
+        throw new Error(msg);
+      }
+      const blob = await resp.blob();
+      triggerBatchDownload(blob, 'noesis-cutout-batch.zip');
+      toast(t('okToast'), 'ok');
+    } catch (err) {
+      console.error(err);
+      toast(t('batchZipFail') + ((err && err.message) || String(err)), 'err');
+    } finally {
+      updateBatchButtons();
+    }
+  });
+
+  batchClearBtn.addEventListener('click', () => {
+    if (batchState.busy) return;
+    for (const item of batchState.items) {
+      if (item.beforeUrl) URL.revokeObjectURL(item.beforeUrl);
+      if (item.afterUrl) URL.revokeObjectURL(item.afterUrl);
+    }
+    batchState.items = [];
+    exitBatchMode();
+  });
+
+  /* =====================================================================
+     EDITOR: magic wand (flood-fill selection) + edge refine (feather /
+     despeckle). Client-side only, no network. Operates on an off-screen
+     ImageData that is the single source of truth, then re-encodes to a PNG
+     blob that flows straight into the existing state.afterBlob download
+     path — so the wand works AFTER an AI cut (fringe cleanup) or on a RAW
+     image (manual cutout without AI).
+     ===================================================================== */
+
+  // Tunables (named constants, no magic numbers in the hot paths).
+  const UNDO_LIMIT = 12; // history depth; each step is an alpha-channel snapshot
+  const ALPHA_ISLAND_THRESHOLD = 16; // alpha above this counts as "solid" for despeckle
+  const ANTS_INTERVAL_MS = 90; // marching-ants animation tick
+  const ANTS_DASH = 4; // marching-ants dash length in pixels
+  // Selection highlight colour (translucent cyan, matches brand --cyan).
+  const HL_R = 34;
+  const HL_G = 211;
+  const HL_B = 238;
+  const HL_A = 90;
+
+  const editor = {
+    open: false,
+    w: 0,
+    h: 0,
+    editCtx: null,
+    overlayCtx: null,
+    imageData: null, // ImageData (source of truth)
+    data: null, // === imageData.data (Uint8ClampedArray, RGBA)
+    selection: null, // Uint8Array, 1 = selected
+    visited: null, // Uint8Array, BFS scratch / last flood region
+    queue: null, // Int32Array, BFS queue
+    border: null, // Int32Array, selection boundary pixel indices
+    borderCount: 0,
+    highlightBuf: null, // Uint8ClampedArray w*h*4, static selection highlight
+    overlayImageData: null,
+    overlayData: null,
+    hasSelection: false,
+    wandActive: false,
+    undoStack: [], // Uint8Array alpha snapshots
+    featherBase: null, // Uint8Array alpha baseline during a live feather drag
+    rafId: 0,
+    antsPhase: 0,
+    lastAntsTime: 0,
+    reducedMotion: false,
+  };
+
+  function loadBitmap(src) {
+    if ('createImageBitmap' in window) return createImageBitmap(src);
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(src);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('image decode failed'));
+      };
+      img.src = url;
+    });
+  }
+
+  async function openEditor(src) {
+    try {
+      const bmp = await loadBitmap(src);
+      const w = bmp.width;
+      const h = bmp.height;
+      if (!w || !h) throw new Error('empty image');
+
+      editor.w = w;
+      editor.h = h;
+      editCanvas.width = w;
+      editCanvas.height = h;
+      overlayCanvas.width = w;
+      overlayCanvas.height = h;
+
+      editor.editCtx = editCanvas.getContext('2d', { willReadFrequently: true });
+      editor.overlayCtx = overlayCanvas.getContext('2d');
+      editor.editCtx.clearRect(0, 0, w, h);
+      editor.editCtx.drawImage(bmp, 0, 0);
+      if (bmp.close) bmp.close();
+
+      editor.imageData = editor.editCtx.getImageData(0, 0, w, h);
+      editor.data = editor.imageData.data;
+
+      const n = w * h;
+      editor.selection = new Uint8Array(n);
+      editor.visited = new Uint8Array(n);
+      editor.queue = new Int32Array(n);
+      editor.border = new Int32Array(n);
+      editor.highlightBuf = new Uint8ClampedArray(n * 4);
+      editor.overlayImageData = editor.overlayCtx.createImageData(w, h);
+      editor.overlayData = editor.overlayImageData.data;
+
+      editor.undoStack = [];
+      undoBtn.disabled = true;
+      editor.hasSelection = false;
+      editor.borderCount = 0;
+      editor.featherBase = null;
+      editor.antsPhase = 0;
+      editor.lastAntsTime = 0;
+      editor.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      clearOverlay();
+      editorSection.classList.remove('stage-hidden');
+      editor.open = true;
+      setWand(true);
+
+      if (!editor.reducedMotion) editor.rafId = requestAnimationFrame(antsLoop);
+      editorSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (err) {
+      console.error(err);
+      toast(t('editOpenFail') + ((err && err.message) || String(err)), 'err');
+    }
+  }
+
+  function closeEditor() {
+    editor.open = false;
+    if (editor.rafId) {
+      cancelAnimationFrame(editor.rafId);
+      editor.rafId = 0;
+    }
+    if (editorSection) editorSection.classList.add('stage-hidden');
+    // release large buffers
+    editor.imageData = null;
+    editor.data = null;
+    editor.selection = null;
+    editor.visited = null;
+    editor.queue = null;
+    editor.border = null;
+    editor.highlightBuf = null;
+    editor.overlayImageData = null;
+    editor.overlayData = null;
+    editor.undoStack = [];
+    editor.featherBase = null;
+    editor.hasSelection = false;
+    editor.borderCount = 0;
+  }
+
+  function setWand(on) {
+    editor.wandActive = on;
+    wandBtn.classList.toggle('active', on);
+    editCanvas.style.cursor = on ? 'crosshair' : 'default';
+  }
+
+  /* ---------- flood fill (typed-array BFS over 4-neighbours) ----------
+     Marks the connected region of pixels whose RGBA is within `tol` of the
+     clicked pixel on every channel (Chebyshev / max-per-channel distance)
+     into editor.visited. O(pixels) time, O(pixels) memory; responsive at
+     ~2000x2000 because the queue and visited map are flat typed arrays. */
+  function floodFill(sx, sy, tol) {
+    const w = editor.w;
+    const h = editor.h;
+    const data = editor.data;
+    const visited = editor.visited;
+    const queue = editor.queue;
+    visited.fill(0);
+
+    const start = sy * w + sx;
+    const sp = start << 2;
+    const tr = data[sp];
+    const tg = data[sp + 1];
+    const tb = data[sp + 2];
+    const ta = data[sp + 3];
+
+    let head = 0;
+    let tail = 0;
+    queue[tail++] = start;
+    visited[start] = 1;
+
+    while (head < tail) {
+      const cur = queue[head++];
+      const cx = cur % w;
+      const cy = (cur / w) | 0;
+
+      if (cx > 0) {
+        const nb = cur - 1;
+        if (!visited[nb]) {
+          const p = nb << 2;
+          if (
+            Math.abs(data[p] - tr) <= tol &&
+            Math.abs(data[p + 1] - tg) <= tol &&
+            Math.abs(data[p + 2] - tb) <= tol &&
+            Math.abs(data[p + 3] - ta) <= tol
+          ) {
+            visited[nb] = 1;
+            queue[tail++] = nb;
+          }
+        }
+      }
+      if (cx < w - 1) {
+        const nb = cur + 1;
+        if (!visited[nb]) {
+          const p = nb << 2;
+          if (
+            Math.abs(data[p] - tr) <= tol &&
+            Math.abs(data[p + 1] - tg) <= tol &&
+            Math.abs(data[p + 2] - tb) <= tol &&
+            Math.abs(data[p + 3] - ta) <= tol
+          ) {
+            visited[nb] = 1;
+            queue[tail++] = nb;
+          }
+        }
+      }
+      if (cy > 0) {
+        const nb = cur - w;
+        if (!visited[nb]) {
+          const p = nb << 2;
+          if (
+            Math.abs(data[p] - tr) <= tol &&
+            Math.abs(data[p + 1] - tg) <= tol &&
+            Math.abs(data[p + 2] - tb) <= tol &&
+            Math.abs(data[p + 3] - ta) <= tol
+          ) {
+            visited[nb] = 1;
+            queue[tail++] = nb;
+          }
+        }
+      }
+      if (cy < h - 1) {
+        const nb = cur + w;
+        if (!visited[nb]) {
+          const p = nb << 2;
+          if (
+            Math.abs(data[p] - tr) <= tol &&
+            Math.abs(data[p + 1] - tg) <= tol &&
+            Math.abs(data[p + 2] - tb) <= tol &&
+            Math.abs(data[p + 3] - ta) <= tol
+          ) {
+            visited[nb] = 1;
+            queue[tail++] = nb;
+          }
+        }
+      }
+    }
+  }
+
+  function applyRegion(mode) {
+    const sel = editor.selection;
+    const vis = editor.visited;
+    const n = editor.w * editor.h;
+    if (mode === 'new') {
+      sel.set(vis);
+    } else if (mode === 'add') {
+      for (let i = 0; i < n; i++) if (vis[i]) sel[i] = 1;
+    } else {
+      // subtract
+      for (let i = 0; i < n; i++) if (vis[i]) sel[i] = 0;
+    }
+  }
+
+  // Recompute the selection boundary (for marching ants) and the static
+  // highlight buffer whenever the selection changes.
+  function computeBorderAndHighlight() {
+    const w = editor.w;
+    const h = editor.h;
+    const sel = editor.selection;
+    const hb = editor.highlightBuf;
+    const border = editor.border;
+    hb.fill(0);
+    let bc = 0;
+    let sc = 0;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        if (sel[i]) {
+          sc++;
+          const p = i << 2;
+          hb[p] = HL_R;
+          hb[p + 1] = HL_G;
+          hb[p + 2] = HL_B;
+          hb[p + 3] = HL_A;
+          const edge =
+            x === 0 ||
+            sel[i - 1] === 0 ||
+            x === w - 1 ||
+            sel[i + 1] === 0 ||
+            y === 0 ||
+            sel[i - w] === 0 ||
+            y === h - 1 ||
+            sel[i + w] === 0;
+          if (edge) border[bc++] = i;
+        }
+      }
+    }
+    editor.borderCount = bc;
+    editor.hasSelection = sc > 0;
+  }
+
+  function clearOverlay() {
+    if (editor.overlayCtx) editor.overlayCtx.clearRect(0, 0, editor.w, editor.h);
+  }
+
+  // Paint highlight + marching-ants boundary. Highlight is a single memcpy;
+  // ants iterate only the (small) boundary set, so this stays cheap per frame.
+  function paintOverlay() {
+    const od = editor.overlayData;
+    od.set(editor.highlightBuf);
+    const border = editor.border;
+    const bc = editor.borderCount;
+    const w = editor.w;
+    const phase = editor.antsPhase;
+    for (let k = 0; k < bc; k++) {
+      const i = border[k];
+      const x = i % w;
+      const y = (i / w) | 0;
+      const on = (((x + y + phase) / ANTS_DASH) | 0) % 2 === 0;
+      const p = i << 2;
+      if (on) {
+        od[p] = 255;
+        od[p + 1] = 255;
+        od[p + 2] = 255;
+        od[p + 3] = 255;
+      } else {
+        od[p] = 12;
+        od[p + 1] = 12;
+        od[p + 2] = 18;
+        od[p + 3] = 255;
+      }
+    }
+    editor.overlayCtx.putImageData(editor.overlayImageData, 0, 0);
+  }
+
+  function refreshSelectionView() {
+    computeBorderAndHighlight();
+    if (editor.hasSelection) paintOverlay();
+    else clearOverlay();
+  }
+
+  function antsLoop(ts) {
+    if (!editor.open) return;
+    if (editor.hasSelection && ts - editor.lastAntsTime > ANTS_INTERVAL_MS) {
+      editor.antsPhase = (editor.antsPhase + 1) & 1023;
+      editor.lastAntsTime = ts;
+      paintOverlay();
+    }
+    editor.rafId = requestAnimationFrame(antsLoop);
+  }
+
+  // Map a click in displayed (CSS) pixels to canvas pixel coordinates.
+  function canvasCoords(e) {
+    const rect = editCanvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const sx = Math.floor((e.clientX - rect.left) * (editor.w / rect.width));
+    const sy = Math.floor((e.clientY - rect.top) * (editor.h / rect.height));
+    if (sx < 0 || sy < 0 || sx >= editor.w || sy >= editor.h) return null;
+    return { sx, sy };
+  }
+
+  editCanvas.addEventListener('click', (e) => {
+    if (!editor.open || !editor.wandActive) return;
+    const c = canvasCoords(e);
+    if (!c) return;
+    endFeatherSession();
+    const tol = +tolInput.value;
+    floodFill(c.sx, c.sy, tol);
+    const mode = e.shiftKey ? 'add' : e.altKey || e.ctrlKey || e.metaKey ? 'sub' : 'new';
+    applyRegion(mode);
+    refreshSelectionView();
+  });
+
+  // ---- alpha-channel undo (all ops touch alpha only; RGB is untouched) ----
+  function pushUndo() {
+    const n = editor.w * editor.h;
+    const data = editor.data;
+    const snap = new Uint8Array(n);
+    for (let i = 0; i < n; i++) snap[i] = data[(i << 2) + 3];
+    editor.undoStack.push(snap);
+    if (editor.undoStack.length > UNDO_LIMIT) editor.undoStack.shift();
+    undoBtn.disabled = false;
+  }
+
+  function applyAlpha(snap) {
+    const n = editor.w * editor.h;
+    const data = editor.data;
+    for (let i = 0; i < n; i++) data[(i << 2) + 3] = snap[i];
+    editor.editCtx.putImageData(editor.imageData, 0, 0);
+  }
+
+  function undo() {
+    if (!editor.open) return;
+    const snap = editor.undoStack.pop();
+    if (!snap) return;
+    applyAlpha(snap);
+    if (editor.undoStack.length === 0) undoBtn.disabled = true;
+    syncOutput();
+  }
+
+  function eraseSelection() {
+    if (!editor.open) return;
+    if (!editor.hasSelection) {
+      toast(t('selEmpty'), 'err');
+      return;
+    }
+    pushUndo();
+    const sel = editor.selection;
+    const data = editor.data;
+    const n = editor.w * editor.h;
+    for (let i = 0; i < n; i++) if (sel[i]) data[(i << 2) + 3] = 0;
+    editor.editCtx.putImageData(editor.imageData, 0, 0);
+    clearSelection();
+    syncOutput();
+    toast(t('erasedToast'), 'ok');
+  }
+
+  function invertSelection() {
+    if (!editor.open) return;
+    const sel = editor.selection;
+    const n = editor.w * editor.h;
+    for (let i = 0; i < n; i++) sel[i] ^= 1;
+    refreshSelectionView();
+  }
+
+  function clearSelection() {
+    if (editor.selection) editor.selection.fill(0);
+    editor.hasSelection = false;
+    editor.borderCount = 0;
+    clearOverlay();
+  }
+
+  /* ---------- edge refine: feather (box blur of the alpha channel) ----------
+     Direct convolution (window <= 11 since radius <= 5): obviously correct,
+     no running-sum edge bugs. RGB is never touched. */
+  function boxBlurAlpha(src, w, h, r) {
+    const win = 2 * r + 1;
+    const tmp = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) {
+      const row = y * w;
+      for (let x = 0; x < w; x++) {
+        let s = 0;
+        for (let k = -r; k <= r; k++) {
+          let xx = x + k;
+          if (xx < 0) xx = 0;
+          else if (xx >= w) xx = w - 1;
+          s += src[row + xx];
+        }
+        tmp[row + x] = s / win;
+      }
+    }
+    const out = new Uint8Array(w * h);
+    for (let x = 0; x < w; x++) {
+      for (let y = 0; y < h; y++) {
+        let s = 0;
+        for (let k = -r; k <= r; k++) {
+          let yy = y + k;
+          if (yy < 0) yy = 0;
+          else if (yy >= h) yy = h - 1;
+          s += tmp[yy * w + x];
+        }
+        out[y * w + x] = Math.round(s / win);
+      }
+    }
+    return out;
+  }
+
+  // Live feather preview: capture a baseline on the first slider move, then
+  // re-derive the alpha from that baseline for each radius (no compounding).
+  function onFeatherInput() {
+    if (!editor.open) return;
+    const r = +featherInput.value;
+    const w = editor.w;
+    const h = editor.h;
+    const n = w * h;
+    const data = editor.data;
+    if (!editor.featherBase) {
+      const base = new Uint8Array(n);
+      for (let i = 0; i < n; i++) base[i] = data[(i << 2) + 3];
+      editor.featherBase = base;
+    }
+    const base = editor.featherBase;
+    if (r <= 0) {
+      for (let i = 0; i < n; i++) data[(i << 2) + 3] = base[i];
+    } else {
+      const out = boxBlurAlpha(base, w, h, r);
+      for (let i = 0; i < n; i++) data[(i << 2) + 3] = out[i];
+    }
+    editor.editCtx.putImageData(editor.imageData, 0, 0);
+  }
+
+  // Commit the feather on slider release: push the pre-feather baseline as one
+  // undo step (only if the radius actually changed anything).
+  function endFeatherSession() {
+    if (!editor.featherBase) return;
+    const r = +featherInput.value;
+    if (r > 0) {
+      editor.undoStack.push(editor.featherBase);
+      if (editor.undoStack.length > UNDO_LIMIT) editor.undoStack.shift();
+      undoBtn.disabled = false;
+      syncOutput();
+    }
+    editor.featherBase = null;
+  }
+
+  /* ---------- edge refine: despeckle (drop tiny alpha islands) ----------
+     Connected-component labels over pixels with alpha > threshold; any
+     component smaller than the chosen size has its alpha zeroed. */
+  function runDespeckle() {
+    if (!editor.open) return;
+    endFeatherSession();
+    const minSize = +despeckleInput.value;
+    const w = editor.w;
+    const h = editor.h;
+    const n = w * h;
+    const data = editor.data;
+    const label = new Int32Array(n); // 0 = unlabelled
+    const queue = editor.queue;
+    const sizes = [0];
+    const TH = ALPHA_ISLAND_THRESHOLD;
+    let comp = 0;
+
+    for (let s = 0; s < n; s++) {
+      if (label[s] === 0 && data[(s << 2) + 3] > TH) {
+        comp++;
+        let sz = 0;
+        let head = 0;
+        let tail = 0;
+        queue[tail++] = s;
+        label[s] = comp;
+        while (head < tail) {
+          const cur = queue[head++];
+          sz++;
+          const cx = cur % w;
+          const cy = (cur / w) | 0;
+          if (cx > 0) {
+            const nb = cur - 1;
+            if (label[nb] === 0 && data[(nb << 2) + 3] > TH) {
+              label[nb] = comp;
+              queue[tail++] = nb;
+            }
+          }
+          if (cx < w - 1) {
+            const nb = cur + 1;
+            if (label[nb] === 0 && data[(nb << 2) + 3] > TH) {
+              label[nb] = comp;
+              queue[tail++] = nb;
+            }
+          }
+          if (cy > 0) {
+            const nb = cur - w;
+            if (label[nb] === 0 && data[(nb << 2) + 3] > TH) {
+              label[nb] = comp;
+              queue[tail++] = nb;
+            }
+          }
+          if (cy < h - 1) {
+            const nb = cur + w;
+            if (label[nb] === 0 && data[(nb << 2) + 3] > TH) {
+              label[nb] = comp;
+              queue[tail++] = nb;
+            }
+          }
+        }
+        sizes[comp] = sz;
+      }
+    }
+
+    let removed = 0;
+    for (let i = 0; i < n; i++) {
+      const l = label[i];
+      if (l > 0 && sizes[l] < minSize) removed++;
+    }
+    if (removed === 0) {
+      toast(t('despeckleNone'));
+      return;
+    }
+    pushUndo();
+    for (let i = 0; i < n; i++) {
+      const l = label[i];
+      if (l > 0 && sizes[l] < minSize) data[(i << 2) + 3] = 0;
+    }
+    editor.editCtx.putImageData(editor.imageData, 0, 0);
+    refreshSelectionView();
+    syncOutput();
+  }
+
+  // Re-encode the edited canvas to a PNG blob and feed it into the existing
+  // single-file download path (state.afterBlob / dlBtn) + after preview.
+  function syncOutput() {
+    if (!editor.open) return;
+    editCanvas.toBlob((blob) => {
+      if (!blob) return;
+      if (state.afterUrl) URL.revokeObjectURL(state.afterUrl);
+      state.afterBlob = blob;
+      state.afterUrl = URL.createObjectURL(blob);
+      imgAfter.src = state.afterUrl;
+      stage.classList.remove('stage-hidden');
+      dlBtn.disabled = false;
+    }, 'image/png');
+  }
+
+  // ---- editor wiring ----
+  editBtn.addEventListener('click', () => {
+    if (!state.file) return;
+    // Prefer the AI result if one exists; otherwise edit the raw original.
+    openEditor(state.afterBlob || state.file);
+  });
+  editCloseBtn.addEventListener('click', closeEditor);
+  wandBtn.addEventListener('click', () => setWand(!editor.wandActive));
+  eraseBtn.addEventListener('click', eraseSelection);
+  invertBtn.addEventListener('click', invertSelection);
+  clearSelBtn.addEventListener('click', () => {
+    clearSelection();
+  });
+  undoBtn.addEventListener('click', undo);
+  despeckleBtn.addEventListener('click', runDespeckle);
+  editDlBtn.addEventListener('click', doDownload);
+
+  tolInput.addEventListener('input', () => {
+    tolVal.textContent = tolInput.value;
+  });
+  featherInput.addEventListener('input', () => {
+    featherVal.textContent = featherInput.value;
+    onFeatherInput();
+  });
+  featherInput.addEventListener('change', endFeatherSession);
+  despeckleInput.addEventListener('input', () => {
+    despeckleVal.textContent = despeckleInput.value;
+  });
+</script>
+
+
+<footer style="margin:40px auto 0;padding:20px;text-align:center;font-family:var(--mono,monospace);font-size:11px;letter-spacing:.06em;color:var(--text-faint,#8a8a93)">
+  <div style="display:inline-flex;align-items:center;gap:10px;font-family:var(--display,sans-serif);font-weight:800;font-size:17px;letter-spacing:-.02em;color:var(--text,#fff)">
+    <span style="width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#a78bfa 0%,#ec4899 50%,#f59e0b 100%);box-shadow:0 4px 14px rgba(236,72,153,.25);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:11px">AM</span>
+    AMAImedia
+  </div>
+  <div style="margin-top:8px">info@amaimedia.com © 2026 AMAImedia</div>
+</footer></div>
+<script>
+(function(){
+  var WALLET="0xa6e95e8e019fbd7e5f720fbed7a3bcf3f020c293";
+  function pack(){
+    var lang=document.documentElement.getAttribute("lang")||"ru";
+    var all=window.NOESIS_I18N||{};
+    return all[lang]||all.en||{};
+  }
+  function set(id,key){
+    var el=document.getElementById(id); var p=pack();
+    if(el && p[key]) el.textContent=p[key];
+  }
+  window.__amaiApplySupportLang=function(){
+    set("supportBtnLabel","tab_support");
+    set("supportTitle","support_title");
+    set("supportSub","support_sub");
+    set("supportThanks","support_thanks");
+    set("supportCopyBtn","support_copy");
+    set("supportChannelBtn","support_channel_btn");
+    set("supportBackBtn","btn_close");
+  };
+  window.__amaiApplySupportLang();
+  try{
+    new MutationObserver(window.__amaiApplySupportLang).observe(document.documentElement,{attributes:true,attributeFilter:["lang"]});
+  }catch(e){}
+  window.__amaiOpenSupport=function(){
+    var p=document.getElementById("page-support");
+    var m=document.getElementById("toolMain");
+    if(p){ p.hidden=false; p.classList.add("on"); }
+    if(m) m.hidden=true;
+    window.scrollTo(0,0);
+  };
+  window.__amaiCloseSupport=function(){
+    var p=document.getElementById("page-support");
+    var m=document.getElementById("toolMain");
+    if(p){ p.hidden=true; p.classList.remove("on"); }
+    if(m) m.hidden=false;
+  };
+  window.__amaiCopyWallet=function(){
+    try{ navigator.clipboard.writeText(WALLET); }catch(e){}
+  };
+  var sb=document.getElementById("supportBtn");
+  if(sb) sb.onclick=window.__amaiOpenSupport;
+  var back=document.getElementById("supportBackBtn");
+  if(back) back.onclick=window.__amaiCloseSupport;
+  var copy=document.getElementById("supportCopyBtn");
+  if(copy) copy.onclick=window.__amaiCopyWallet;
+  var tg=document.getElementById("supportTgBtn");
+  if(tg) tg.onclick=function(){ window.open("https://t.me/djbionicl","_blank","noopener"); };
+  var ch=document.getElementById("supportChannelBtn");
+  if(ch) ch.onclick=function(){ window.open("https://www.youtube.com/@amaimediacom","_blank","noopener"); };
+})();
+</script>
+
+</body></html>

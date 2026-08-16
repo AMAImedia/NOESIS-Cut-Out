@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "required": [
+    "START.bat",
+    "runtime\\preflight.py",
+    "runtime\\serve.py",
+    "runtime\\space_ports.py",
+    "index.html",
+    "vendor\\python\\python.exe",
+    "vendor\\noesis-unified.css",
+    "vendor\\fonts\\fonts.css",
+    "vendor\\lang.js"
+  ],
+  "sha256": {
+    "runtime\\preflight.py": "2ba9cb583294153b3b6ab864dc60f2b56dfd456e57a4a51ed3c3b3f5da3b0b25",
+    "runtime\\serve.py": "0b050e9939a4a5b13d7e971ba7aa557472d2f59fda57b597d2e7b98c440ec65c",
+    "runtime\\space_ports.py": "0549bf4597dba0b11d34a64627c8ea01408da43e7151acd258710e6c7e640d27",
+    "index.html": "44036350924b72a5a143019b62ec39a931734aa8918419c5091267ae04e6a6e2",
+    "START.bat": "99dad39c3ca307a93560fa4ad63ae63c8f3297518e36899cad1533687f9e3491",
+    "vendor\\noesis-unified.css": "88b1d1f324d0885080576db3e4c44d403e016e8fd0a6997a739355bb6a090f8a"
+  },
+  "min_free_bytes": 2147483648,
+  "ports": [
+    8788
+  ]
+}
